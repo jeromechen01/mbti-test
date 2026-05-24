@@ -34,6 +34,9 @@
   <!-- html2canvas（用于生成分享图） -->
   <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
+  <!-- lunar-javascript（农历↔公历互转，用于关系匹配生日输入） -->
+  <script src="https://unpkg.com/lunar-javascript@1.6.10/lunar.js"></script>
+
   <style>
     :root {
       --primary:   #6366F1;
@@ -1072,10 +1075,21 @@
           </div>
         </div>
 
-        <!-- 生日 -->
+        <!-- 生日（支持公历/农历切换） -->
         <div>
-          <label class="block text-sm font-medium mb-2" x-text="t('matching.inputBirthday')"></label>
-          <div class="grid grid-cols-3 gap-2">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-sm font-medium" x-text="t('matching.inputBirthday')"></label>
+            <div class="inline-flex bg-gray-100 dark:bg-slate-700 rounded-btn p-0.5 text-xs">
+              <button type="button" @click="setCalendarType('solar')"
+                      :class="(_p.calendarType || 'solar') === 'solar' ? 'bg-white dark:bg-slate-600 shadow text-primary' : 'text-gray-500 dark:text-gray-300'"
+                      class="px-3 py-1 rounded-btn font-medium transition" x-text="t('matching.calendarSolar')"></button>
+              <button type="button" @click="setCalendarType('lunar')"
+                      :class="_p.calendarType === 'lunar' ? 'bg-white dark:bg-slate-600 shadow text-primary' : 'text-gray-500 dark:text-gray-300'"
+                      class="px-3 py-1 rounded-btn font-medium transition" x-text="t('matching.calendarLunar')"></button>
+            </div>
+          </div>
+          <!-- 公历输入 -->
+          <div x-show="(_p.calendarType || 'solar') === 'solar'" class="grid grid-cols-3 gap-2">
             <select x-model.number="_p.year" class="px-3 py-2.5 rounded-btn border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700">
               <template x-for="y in matchingYearList" :key="y">
                 <option :value="y" x-text="y + t('matching.inputYear')"></option>
@@ -1092,6 +1106,29 @@
               </template>
             </select>
           </div>
+          <!-- 农历输入 -->
+          <div x-show="_p.calendarType === 'lunar'" class="grid grid-cols-3 gap-2">
+            <select :value="_p.lunarYear" @change="setLunarPart('year', parseInt($event.target.value, 10))"
+                    class="px-3 py-2.5 rounded-btn border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700">
+              <template x-for="y in matchingLunarYearList" :key="y">
+                <option :value="y" x-text="y + t('matching.inputYear')"></option>
+              </template>
+            </select>
+            <select :value="_p.lunarMonth" @change="setLunarPart('month', parseInt($event.target.value, 10))"
+                    class="px-3 py-2.5 rounded-btn border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700">
+              <template x-for="m in matchingLunarMonthList" :key="m.value">
+                <option :value="m.value" x-text="m.label"></option>
+              </template>
+            </select>
+            <select :value="_p.lunarDay" @change="setLunarPart('day', parseInt($event.target.value, 10))"
+                    class="px-3 py-2.5 rounded-btn border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700">
+              <template x-for="d in matchingLunarDayList" :key="d">
+                <option :value="d" x-text="d + t('matching.inputDay')"></option>
+              </template>
+            </select>
+          </div>
+          <!-- 转换预览：农历态显示对应公历，公历态显示对应农历 -->
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5" x-text="lunarPreviewText()"></p>
         </div>
 
         <!-- 出生时辰 -->
@@ -1105,12 +1142,16 @@
           </select>
         </div>
 
-        <!-- 出生城市 -->
+        <!-- 出生城市（按省分组到地级市） -->
         <div>
           <label class="block text-sm font-medium mb-2" x-text="t('matching.inputCity')"></label>
           <select x-model="_p.city" class="w-full px-3 py-2.5 rounded-btn border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700">
-            <template x-for="c in matchingCityList" :key="c">
-              <option :value="c" x-text="c"></option>
+            <template x-for="(cities, province) in matchingCityGroups" :key="province">
+              <optgroup :label="province">
+                <template x-for="(coords, cityName) in cities" :key="cityName">
+                  <option :value="cityName" x-text="cityName"></option>
+                </template>
+              </optgroup>
             </template>
             <option value="其他" x-text="t('matching.inputCityOther')"></option>
           </select>
@@ -1898,148 +1939,155 @@
           upgradeLockTitle: '专业内容仅在付费版可见',
           upgradeLockDesc: '升级到标准版或专业版，解锁全部 8 大主题',
           upgradeLockCta: '升级查看',
-          disclaimer: '※ 本测评结果仅供自我探索参考，不构成任何心理诊断或医学建议。',
+          disclaimer: '※ 本测评结果仅供自我探索参考，不构成任何心理诊断或医学建议。'
+        },
 
-          ai: {
-            name: '小满',
-            statusOnline: '在线',
-            statusTyping: '正在打字…',
-            inputPlaceholder: '把你想问的事告诉小满…（按回车发送）',
-            sendBtn: '发送',
-            sending: '发送中…',
-            entryFromReport: '和小满聊聊我的人格 →',
-            entryFromMatching: '问小满该怎么办 →',
-            entryFromMe: '我的小满',
-            clearChat: '清空对话',
-            confirmClear: '确定要清空所有对话历史？',
-            firstGreeting: '嘿，姐妹/老铁。我是小满。\n\n你刚做完测试，结果我都看了。有什么想聊的——情感、工作、家庭、自我怀疑——都可以问。\n\n我不会和你讲漂亮话，但我会和你讲真话。',
-            firstGreetingWithMatching: '嘿，姐妹/老铁。我是小满。\n\n你和 {nameB} 的匹配报告我看了。{score} 分这个数字背后我有几句话想跟你聊。\n\n你想先聊哪个——关系、自己、还是怎么处理眼下这一刻？',
-            errorNetwork: '网络出问题了，过几秒再试一次',
-            errorUnlock: '解锁码失效，请重新解锁',
-            errorRate: '聊得太快啦，等一分钟再来',
-            errorGeneric: '小满走神了，再问一次？',
-            workerNotConfigured: '※ AI 服务暂未配置（需要管理员部署 Cloudflare Workers）。详见 docs/P3-完成报告.md。'
-          },
+        ai: {
+          name: '小满',
+          statusOnline: '在线',
+          statusTyping: '正在打字…',
+          inputPlaceholder: '把你想问的事告诉小满…（按回车发送）',
+          sendBtn: '发送',
+          sending: '发送中…',
+          entryFromReport: '和小满聊聊我的人格 →',
+          entryFromMatching: '问小满该怎么办 →',
+          entryFromMe: '我的小满',
+          clearChat: '清空对话',
+          confirmClear: '确定要清空所有对话历史？',
+          firstGreeting: '嘿，姐妹/老铁。我是小满。\n\n你刚做完测试，结果我都看了。有什么想聊的——情感、工作、家庭、自我怀疑——都可以问。\n\n我不会和你讲漂亮话，但我会和你讲真话。',
+          firstGreetingWithMatching: '嘿，姐妹/老铁。我是小满。\n\n你和 {nameB} 的匹配报告我看了。{score} 分这个数字背后我有几句话想跟你聊。\n\n你想先聊哪个——关系、自己、还是怎么处理眼下这一刻？',
+          errorNetwork: '网络出问题了，过几秒再试一次',
+          errorUnlock: '解锁码失效，请重新解锁',
+          errorRate: '聊得太快啦，等一分钟再来',
+          errorGeneric: '小满走神了，再问一次？',
+          workerNotConfigured: '※ AI 服务暂未配置（需要管理员部署 Cloudflare Workers）。详见 docs/P3-完成报告.md。'
+        },
 
-          matching: {
-            /* 介绍页 */
-            introTitle: '你和 TA 合不合？',
-            introSubtitle: 'MBTI + 八字 + 星座 三盘合一深度解读',
-            introFeatureMBTI: '心智盘 · MBTI',
-            introFeatureBazi: '命理盘 · 八字',
-            introFeatureAstro: '星盘 · 太阳/月亮/上升',
-            introTagline: '不止"合不合"，更告诉你"为什么合"与"哪里会卡"',
-            introCta: '开始测试',
-            introCtaUnlocked: '开始测试（已解锁）',
-            introCtaPrice: '解锁 · ¥19.9',
-            introUnlockedHint: '已购买可输入解锁码',
-            introUnlockBtn: '我有解锁码',
-            introFooter: '※ 本测评融合现代心理学与传统文化体系，仅供文化娱乐参考，不构成婚恋建议。',
+        matching: {
+          /* 介绍页 */
+          introTitle: '你和 TA 合不合？',
+          introSubtitle: 'MBTI + 八字 + 星座 三盘合一深度解读',
+          introFeatureMBTI: '心智盘 · MBTI',
+          introFeatureBazi: '命理盘 · 八字',
+          introFeatureAstro: '星盘 · 太阳/月亮/上升',
+          introTagline: '不止"合不合"，更告诉你"为什么合"与"哪里会卡"',
+          introCta: '开始测试',
+          introCtaUnlocked: '开始测试（已解锁）',
+          introCtaPrice: '解锁 · ¥19.9',
+          introUnlockedHint: '已购买可输入解锁码',
+          introUnlockBtn: '我有解锁码',
+          introFooter: '※ 本测评融合现代心理学与传统文化体系，仅供文化娱乐参考，不构成婚恋建议。',
 
-            /* 输入页 */
-            inputTitle: '填两个人的信息',
-            inputSubtitle: '两人的生辰越准确，匹配越深刻',
-            inputTabA: '你（A 方）',
-            inputTabB: 'TA（B 方）',
-            inputNickname: '昵称',
-            inputNicknamePlaceholder: '2-10 字，比如"小米"',
-            inputGender: '性别',
-            inputGenderMale: '男',
-            inputGenderFemale: '女',
-            inputGenderOther: '不愿透露',
-            inputBirthday: '公历生日',
-            inputYear: '年',
-            inputMonth: '月',
-            inputDay: '日',
-            inputHour: '出生时辰',
-            inputHourUnknown: '不知道时辰',
-            inputCity: '出生城市',
-            inputCityOther: '其他（按北京默认）',
-            inputMbti: 'MBTI 类型',
-            inputMbtiUnknown: '不知道，先去测',
-            inputRelation: '关系类型',
-            inputRelationLove: '恋爱',
-            inputRelationMarriage: '夫妻',
-            inputRelationFriend: '朋友',
-            inputRelationPartner: '事业合伙',
-            inputRelationColleague: '同事',
-            inputCta: '开始计算',
-            inputValidationName: '请填写双方昵称',
-            inputValidationMbti: '请选择双方 MBTI（不确定可先去免费测）',
+          /* 输入页 */
+          inputTitle: '填两个人的信息',
+          inputSubtitle: '两人的生辰越准确，匹配越深刻',
+          inputTabA: '你（A 方）',
+          inputTabB: 'TA（B 方）',
+          inputNickname: '昵称',
+          inputNicknamePlaceholder: '2-10 字，比如"小米"',
+          inputGender: '性别',
+          inputGenderMale: '男',
+          inputGenderFemale: '女',
+          inputGenderOther: '不愿透露',
+          inputBirthday: '生日',
+          inputBirthdaySolar: '公历生日',
+          inputBirthdayLunar: '农历生日',
+          calendarSolar: '公历',
+          calendarLunar: '农历',
+          calendarConvertedToSolar: '对应公历',
+          calendarConvertedToLunar: '对应农历',
+          calendarLeapPrefix: '闰',
+          inputYear: '年',
+          inputMonth: '月',
+          inputDay: '日',
+          inputHour: '出生时辰',
+          inputHourUnknown: '不知道时辰',
+          inputCity: '出生城市',
+          inputCityOther: '其他（按北京默认）',
+          inputMbti: 'MBTI 类型',
+          inputMbtiUnknown: '不知道，先去测',
+          inputRelation: '关系类型',
+          inputRelationLove: '恋爱',
+          inputRelationMarriage: '夫妻',
+          inputRelationFriend: '朋友',
+          inputRelationPartner: '事业合伙',
+          inputRelationColleague: '同事',
+          inputCta: '开始计算',
+          inputValidationName: '请填写双方昵称',
+          inputValidationMbti: '请选择双方 MBTI（不确定可先去免费测）',
 
-            /* 加载页 */
-            loadingPhase1: '正在排盘…',
-            loadingPhase2: '正在合星…',
-            loadingPhase3: '正在跑 MBTI 矩阵…',
-            loadingPhase4: '揭示命数…',
+          /* 加载页 */
+          loadingPhase1: '正在排盘…',
+          loadingPhase2: '正在合星…',
+          loadingPhase3: '正在跑 MBTI 矩阵…',
+          loadingPhase4: '揭示命数…',
 
-            /* 结果页 */
-            resultTotalLabel: '总分',
-            resultGradeLabel: '评级',
-            resultLevelGreen: '绿灯 · 放心交往',
-            resultLevelYellow: '黄灯 · 有一处需要注意',
-            resultLevelOrange: '橙灯 · 谨慎评估',
-            resultLevelRed: '红灯 · 建议止损',
-            resultCardMbti: '心智盘 · MBTI',
-            resultCardBazi: '命理盘 · 八字',
-            resultCardAstro: '星盘 · 太阳月亮上升',
-            resultCardScoreSuffix: '/30',
-            resultBaziSuffix: '/35',
-            resultAstroSuffix: '/25',
-            resultYinyangSuffix: '/10',
-            resultDimensionsTitle: '十维度深度解读',
-            resultDimensionsSubtitle: '点开看详情',
-            resultRiskTitle: '红绿灯警报',
-            resultRiskEmpty: '本次无红旗信号 · 这是好事',
-            resultRiskAboutSelf: '关于你自己',
-            resultRiskAboutPartner: '关于 TA',
-            resultAdviceTitle: '相处建议',
-            resultAdviceSubtitle: '为你们这一对选的，不是套话',
-            resultProphecyLabel: '结局预判',
-            resultSaveBtn: '保存这份报告',
-            resultRetryBtn: '再测一对',
-            resultShareBtn: '送给 TA 看',
-            resultFooterDisclaimer: '※ 以上判断基于性格统计倾向与传统文化体系，不代表具体个体行为；关系归根结底是两个人的相处，工具只是镜子。',
+          /* 结果页 */
+          resultTotalLabel: '总分',
+          resultGradeLabel: '评级',
+          resultLevelGreen: '绿灯 · 放心交往',
+          resultLevelYellow: '黄灯 · 有一处需要注意',
+          resultLevelOrange: '橙灯 · 谨慎评估',
+          resultLevelRed: '红灯 · 建议止损',
+          resultCardMbti: '心智盘 · MBTI',
+          resultCardBazi: '命理盘 · 八字',
+          resultCardAstro: '星盘 · 太阳月亮上升',
+          resultCardScoreSuffix: '/30',
+          resultBaziSuffix: '/35',
+          resultAstroSuffix: '/25',
+          resultYinyangSuffix: '/10',
+          resultDimensionsTitle: '十维度深度解读',
+          resultDimensionsSubtitle: '点开看详情',
+          resultRiskTitle: '红绿灯警报',
+          resultRiskEmpty: '本次无红旗信号 · 这是好事',
+          resultRiskAboutSelf: '关于你自己',
+          resultRiskAboutPartner: '关于 TA',
+          resultAdviceTitle: '相处建议',
+          resultAdviceSubtitle: '为你们这一对选的，不是套话',
+          resultProphecyLabel: '结局预判',
+          resultSaveBtn: '保存这份报告',
+          resultRetryBtn: '再测一对',
+          resultShareBtn: '送给 TA 看',
+          resultFooterDisclaimer: '※ 以上判断基于性格统计倾向与传统文化体系，不代表具体个体行为；关系归根结底是两个人的相处，工具只是镜子。',
 
-            /* 维度名 */
-            dim1: '第一眼吸引', dim2: '日常相处', dim3: '吵架模式', dim4: '三观对齐', dim5: '激情值',
-            dim6: '共同成长', dim7: '危机抵抗', dim8: '七年之痒', dim9: '彼此塑造', dim10: '结局预判',
+          /* 维度名 */
+          dim1: '第一眼吸引', dim2: '日常相处', dim3: '吵架模式', dim4: '三观对齐', dim5: '激情值',
+          dim6: '共同成长', dim7: '危机抵抗', dim8: '七年之痒', dim9: '彼此塑造', dim10: '结局预判',
 
-            /* 阴阳调和模式 */
-            yinYangComplementary: '阴阳互补',
-            yinYangBothYang: '双阳偏旺',
-            yinYangBothYin: '双阴偏柔',
-            yinYangInnerBalanced: '内部平衡',
-            yinYangMixed: '阴阳交错'
-          },
+          /* 阴阳调和模式 */
+          yinYangComplementary: '阴阳互补',
+          yinYangBothYang: '双阳偏旺',
+          yinYangBothYin: '双阴偏柔',
+          yinYangInnerBalanced: '内部平衡',
+          yinYangMixed: '阴阳交错'
+        },
 
-          deepReport: {
-            sectionTitle: '你的灵魂深度报告',
-            sectionSubtitle: '10 章节 · 一份只属于你的人格指南',
-            chapterPrefix: '第',
-            chapterSuffix: '章',
-            painLabel: '至暗时刻 · 扎心一刀',
-            healLabel: '灵魂赠言 · 这一段，留给自己',
-            lockTitleStandard: '此章节需要"标准版"或以上解锁',
-            lockTitlePro: '此章节仅"专业版"可见',
-            lockDescStandard: '升级到标准版（¥4.9）或专业版（¥9.9）即可看完整 10 章。',
-            lockDescPro: '升级到专业版（¥9.9）解锁修行 / 30 岁预言 / 灵魂赠言这三章。',
-            lockCtaStandard: '升级到标准版',
-            lockCtaPro: '升级到专业版',
-            unlockedAll: '本版本已解锁全部 10 章',
-            scrollHint: '↓ 慢慢读，10 章一章都不省',
-            chapterTitles: {
-              '1': '你的核心信念',
-              '2': '你的童年烙印',
-              '3': '你的浪漫剧本',
-              '4': '你的财富命数',
-              '5': '你的事业宿命',
-              '6': '你的至暗时刻',
-              '7': '你的贵人画像',
-              '8': '你的修行方向',
-              '9': '你的30岁预言',
-              '10': '你的灵魂赠言'
-            }
+        deepReport: {
+          sectionTitle: '你的灵魂深度报告',
+          sectionSubtitle: '10 章节 · 一份只属于你的人格指南',
+          chapterPrefix: '第',
+          chapterSuffix: '章',
+          painLabel: '至暗时刻 · 扎心一刀',
+          healLabel: '灵魂赠言 · 这一段，留给自己',
+          lockTitleStandard: '此章节需要"标准版"或以上解锁',
+          lockTitlePro: '此章节仅"专业版"可见',
+          lockDescStandard: '升级到标准版（¥4.9）或专业版（¥9.9）即可看完整 10 章。',
+          lockDescPro: '升级到专业版（¥9.9）解锁修行 / 30 岁预言 / 灵魂赠言这三章。',
+          lockCtaStandard: '升级到标准版',
+          lockCtaPro: '升级到专业版',
+          unlockedAll: '本版本已解锁全部 10 章',
+          scrollHint: '↓ 慢慢读，10 章一章都不省',
+          chapterTitles: {
+            '1': '你的核心信念',
+            '2': '你的童年烙印',
+            '3': '你的浪漫剧本',
+            '4': '你的财富命数',
+            '5': '你的事业宿命',
+            '6': '你的至暗时刻',
+            '7': '你的贵人画像',
+            '8': '你的修行方向',
+            '9': '你的30岁预言',
+            '10': '你的灵魂赠言'
           }
         },
 
@@ -2289,143 +2337,150 @@
           upgradeLockTitle: 'Pro topics unlock with a paid tier',
           upgradeLockDesc: 'Upgrade to Standard or Pro for all 8 topics',
           upgradeLockCta: 'Upgrade',
-          disclaimer: '※ This assessment is for self-exploration only and does not constitute a clinical diagnosis or medical advice.',
+          disclaimer: '※ This assessment is for self-exploration only and does not constitute a clinical diagnosis or medical advice.'
+        },
 
-          ai: {
-            name: 'Xiaoman',
-            statusOnline: 'Online',
-            statusTyping: 'Typing…',
-            inputPlaceholder: 'Tell Xiaoman what is on your mind… (Enter to send)',
-            sendBtn: 'Send',
-            sending: 'Sending…',
-            entryFromReport: 'Chat with Xiaoman about my type →',
-            entryFromMatching: 'Ask Xiaoman what to do →',
-            entryFromMe: 'My Xiaoman',
-            clearChat: 'Clear chat',
-            confirmClear: 'Clear all chat history?',
-            firstGreeting: "Hey. I'm Xiaoman.\n\nI've read your test result. Anything you want to talk through — relationships, work, family, self-doubt — go ahead.\n\nI won't give you pretty words. I'll give you the truth.",
-            firstGreetingWithMatching: "Hey. I'm Xiaoman.\n\nI saw your match with {nameB}. {score} — and behind that number I have a few things to say.\n\nWhere do you want to start: the relationship, yourself, or what to do right now?",
-            errorNetwork: 'Network glitched. Try again in a second.',
-            errorUnlock: 'Unlock code invalid — please re-unlock.',
-            errorRate: 'Too fast. Wait one minute.',
-            errorGeneric: 'Xiaoman zoned out. Try again?',
-            workerNotConfigured: '※ AI service not yet configured (Cloudflare Workers needs admin deploy). See docs/P3-完成报告.md.'
-          },
+        ai: {
+          name: 'Xiaoman',
+          statusOnline: 'Online',
+          statusTyping: 'Typing…',
+          inputPlaceholder: 'Tell Xiaoman what is on your mind… (Enter to send)',
+          sendBtn: 'Send',
+          sending: 'Sending…',
+          entryFromReport: 'Chat with Xiaoman about my type →',
+          entryFromMatching: 'Ask Xiaoman what to do →',
+          entryFromMe: 'My Xiaoman',
+          clearChat: 'Clear chat',
+          confirmClear: 'Clear all chat history?',
+          firstGreeting: "Hey. I'm Xiaoman.\n\nI've read your test result. Anything you want to talk through — relationships, work, family, self-doubt — go ahead.\n\nI won't give you pretty words. I'll give you the truth.",
+          firstGreetingWithMatching: "Hey. I'm Xiaoman.\n\nI saw your match with {nameB}. {score} — and behind that number I have a few things to say.\n\nWhere do you want to start: the relationship, yourself, or what to do right now?",
+          errorNetwork: 'Network glitched. Try again in a second.',
+          errorUnlock: 'Unlock code invalid — please re-unlock.',
+          errorRate: 'Too fast. Wait one minute.',
+          errorGeneric: 'Xiaoman zoned out. Try again?',
+          workerNotConfigured: '※ AI service not yet configured (Cloudflare Workers needs admin deploy). See docs/P3-完成报告.md.'
+        },
 
-          matching: {
-            introTitle: 'How well do you and TA match?',
-            introSubtitle: 'MBTI + Bazi + Astrology — three-layer deep reading',
-            introFeatureMBTI: 'Mind · MBTI',
-            introFeatureBazi: 'Destiny · Bazi',
-            introFeatureAstro: 'Star Chart · Sun/Moon/Rising',
-            introTagline: 'Not just "do you match" — but "why" and "where will you get stuck"',
-            introCta: 'Start',
-            introCtaUnlocked: 'Start (Unlocked)',
-            introCtaPrice: 'Unlock · ¥19.9',
-            introUnlockedHint: 'Already purchased? Enter unlock code',
-            introUnlockBtn: 'I have a code',
-            introFooter: '※ This combines modern psychology with traditional cultural systems. For cultural/entertainment reference only; not relationship advice.',
+        matching: {
+          introTitle: 'How well do you and TA match?',
+          introSubtitle: 'MBTI + Bazi + Astrology — three-layer deep reading',
+          introFeatureMBTI: 'Mind · MBTI',
+          introFeatureBazi: 'Destiny · Bazi',
+          introFeatureAstro: 'Star Chart · Sun/Moon/Rising',
+          introTagline: 'Not just "do you match" — but "why" and "where will you get stuck"',
+          introCta: 'Start',
+          introCtaUnlocked: 'Start (Unlocked)',
+          introCtaPrice: 'Unlock · ¥19.9',
+          introUnlockedHint: 'Already purchased? Enter unlock code',
+          introUnlockBtn: 'I have a code',
+          introFooter: '※ This combines modern psychology with traditional cultural systems. For cultural/entertainment reference only; not relationship advice.',
 
-            inputTitle: 'Fill in both people',
-            inputSubtitle: 'The more accurate the birth data, the deeper the reading',
-            inputTabA: 'You (Side A)',
-            inputTabB: 'TA (Side B)',
-            inputNickname: 'Nickname',
-            inputNicknamePlaceholder: '2-10 chars',
-            inputGender: 'Gender',
-            inputGenderMale: 'Male',
-            inputGenderFemale: 'Female',
-            inputGenderOther: 'Prefer not to say',
-            inputBirthday: 'Gregorian Birth Date',
-            inputYear: 'Y',
-            inputMonth: 'M',
-            inputDay: 'D',
-            inputHour: 'Birth Hour',
-            inputHourUnknown: 'Hour unknown',
-            inputCity: 'Birth City',
-            inputCityOther: 'Other (default Beijing)',
-            inputMbti: 'MBTI Type',
-            inputMbtiUnknown: "Don't know — take the free test first",
-            inputRelation: 'Relationship Type',
-            inputRelationLove: 'Dating',
-            inputRelationMarriage: 'Marriage',
-            inputRelationFriend: 'Friends',
-            inputRelationPartner: 'Business Partners',
-            inputRelationColleague: 'Colleagues',
-            inputCta: 'Compute',
-            inputValidationName: 'Please fill in nicknames for both',
-            inputValidationMbti: 'Please select MBTI for both (or take the free test first)',
+          inputTitle: 'Fill in both people',
+          inputSubtitle: 'The more accurate the birth data, the deeper the reading',
+          inputTabA: 'You (Side A)',
+          inputTabB: 'TA (Side B)',
+          inputNickname: 'Nickname',
+          inputNicknamePlaceholder: '2-10 chars',
+          inputGender: 'Gender',
+          inputGenderMale: 'Male',
+          inputGenderFemale: 'Female',
+          inputGenderOther: 'Prefer not to say',
+          inputBirthday: 'Birth Date',
+          inputBirthdaySolar: 'Gregorian Birth Date',
+          inputBirthdayLunar: 'Lunar Birth Date',
+          calendarSolar: 'Solar',
+          calendarLunar: 'Lunar',
+          calendarConvertedToSolar: 'In Gregorian',
+          calendarConvertedToLunar: 'In Lunar',
+          calendarLeapPrefix: 'Leap ',
+          inputYear: 'Y',
+          inputMonth: 'M',
+          inputDay: 'D',
+          inputHour: 'Birth Hour',
+          inputHourUnknown: 'Hour unknown',
+          inputCity: 'Birth City',
+          inputCityOther: 'Other (default Beijing)',
+          inputMbti: 'MBTI Type',
+          inputMbtiUnknown: "Don't know — take the free test first",
+          inputRelation: 'Relationship Type',
+          inputRelationLove: 'Dating',
+          inputRelationMarriage: 'Marriage',
+          inputRelationFriend: 'Friends',
+          inputRelationPartner: 'Business Partners',
+          inputRelationColleague: 'Colleagues',
+          inputCta: 'Compute',
+          inputValidationName: 'Please fill in nicknames for both',
+          inputValidationMbti: 'Please select MBTI for both (or take the free test first)',
 
-            loadingPhase1: 'Casting Bazi…',
-            loadingPhase2: 'Aligning stars…',
-            loadingPhase3: 'Running MBTI matrix…',
-            loadingPhase4: 'Revealing destiny…',
+          loadingPhase1: 'Casting Bazi…',
+          loadingPhase2: 'Aligning stars…',
+          loadingPhase3: 'Running MBTI matrix…',
+          loadingPhase4: 'Revealing destiny…',
 
-            resultTotalLabel: 'Total',
-            resultGradeLabel: 'Grade',
-            resultLevelGreen: 'Green · Go ahead',
-            resultLevelYellow: 'Yellow · One thing to watch',
-            resultLevelOrange: 'Orange · Proceed carefully',
-            resultLevelRed: 'Red · Consider stopping',
-            resultCardMbti: 'Mind · MBTI',
-            resultCardBazi: 'Destiny · Bazi',
-            resultCardAstro: 'Stars · Sun/Moon/Rising',
-            resultCardScoreSuffix: '/30',
-            resultBaziSuffix: '/35',
-            resultAstroSuffix: '/25',
-            resultYinyangSuffix: '/10',
-            resultDimensionsTitle: 'Ten-Dimensional Reading',
-            resultDimensionsSubtitle: 'Tap to expand',
-            resultRiskTitle: 'Risk Signals',
-            resultRiskEmpty: 'No red flags · Good sign',
-            resultRiskAboutSelf: 'About yourself',
-            resultRiskAboutPartner: 'About TA',
-            resultAdviceTitle: 'Advice For This Pair',
-            resultAdviceSubtitle: 'Specifically picked, not boilerplate',
-            resultProphecyLabel: 'Predicted Ending',
-            resultSaveBtn: 'Save This Report',
-            resultRetryBtn: 'Try Another Pair',
-            resultShareBtn: 'Send To TA',
-            resultFooterDisclaimer: '※ Based on personality statistics and traditional cultural systems. Not individual behavior prediction; relationships are between two real people — the tool is just a mirror.',
+          resultTotalLabel: 'Total',
+          resultGradeLabel: 'Grade',
+          resultLevelGreen: 'Green · Go ahead',
+          resultLevelYellow: 'Yellow · One thing to watch',
+          resultLevelOrange: 'Orange · Proceed carefully',
+          resultLevelRed: 'Red · Consider stopping',
+          resultCardMbti: 'Mind · MBTI',
+          resultCardBazi: 'Destiny · Bazi',
+          resultCardAstro: 'Stars · Sun/Moon/Rising',
+          resultCardScoreSuffix: '/30',
+          resultBaziSuffix: '/35',
+          resultAstroSuffix: '/25',
+          resultYinyangSuffix: '/10',
+          resultDimensionsTitle: 'Ten-Dimensional Reading',
+          resultDimensionsSubtitle: 'Tap to expand',
+          resultRiskTitle: 'Risk Signals',
+          resultRiskEmpty: 'No red flags · Good sign',
+          resultRiskAboutSelf: 'About yourself',
+          resultRiskAboutPartner: 'About TA',
+          resultAdviceTitle: 'Advice For This Pair',
+          resultAdviceSubtitle: 'Specifically picked, not boilerplate',
+          resultProphecyLabel: 'Predicted Ending',
+          resultSaveBtn: 'Save This Report',
+          resultRetryBtn: 'Try Another Pair',
+          resultShareBtn: 'Send To TA',
+          resultFooterDisclaimer: '※ Based on personality statistics and traditional cultural systems. Not individual behavior prediction; relationships are between two real people — the tool is just a mirror.',
 
-            dim1: 'First Attraction', dim2: 'Daily Life', dim3: 'Fight Patterns', dim4: 'Worldview Alignment', dim5: 'Passion',
-            dim6: 'Growing Together', dim7: 'Crisis Resilience', dim8: 'Seven-Year Itch', dim9: 'Mutual Shaping', dim10: 'Predicted Ending',
+          dim1: 'First Attraction', dim2: 'Daily Life', dim3: 'Fight Patterns', dim4: 'Worldview Alignment', dim5: 'Passion',
+          dim6: 'Growing Together', dim7: 'Crisis Resilience', dim8: 'Seven-Year Itch', dim9: 'Mutual Shaping', dim10: 'Predicted Ending',
 
-            yinYangComplementary: 'Yin-Yang complementary',
-            yinYangBothYang: 'Both yang-dominant',
-            yinYangBothYin: 'Both yin-dominant',
-            yinYangInnerBalanced: 'Inner-balanced',
-            yinYangMixed: 'Mixed pattern'
-          },
+          yinYangComplementary: 'Yin-Yang complementary',
+          yinYangBothYang: 'Both yang-dominant',
+          yinYangBothYin: 'Both yin-dominant',
+          yinYangInnerBalanced: 'Inner-balanced',
+          yinYangMixed: 'Mixed pattern'
+        },
 
-          deepReport: {
-            sectionTitle: 'Your Soul-Depth Report',
-            sectionSubtitle: '10 chapters · a personality guide written only for you',
-            chapterPrefix: 'Chapter',
-            chapterSuffix: '',
-            painLabel: 'Your Darkest Hour',
-            healLabel: 'A Final Word for Your Soul',
-            lockTitleStandard: 'This chapter unlocks with Standard or higher',
-            lockTitlePro: 'This chapter is Pro-only',
-            lockDescStandard: 'Upgrade to Standard (¥4.9) or Pro (¥9.9) to read all 10 chapters.',
-            lockDescPro: 'Upgrade to Pro (¥9.9) to unlock the practice / 30-prophecy / soul-letter trio.',
-            lockCtaStandard: 'Upgrade to Standard',
-            lockCtaPro: 'Upgrade to Pro',
-            unlockedAll: 'All 10 chapters unlocked',
-            scrollHint: '↓ Read slowly — no chapter is filler',
-            translationNote: '※ Full English translation in progress. Quotes and titles are localized; the chapter body remains in Chinese for now — switch to 中文 (top-right) for the best read.',
-            chapterTitles: {
-              '1': 'Your Core Belief',
-              '2': 'Your Childhood Imprint',
-              '3': 'Your Romance Script',
-              '4': 'Your Wealth Destiny',
-              '5': 'Your Career Fate',
-              '6': 'Your Darkest Hour',
-              '7': 'Your Allies & Guardians',
-              '8': 'Your Inner Practice',
-              '9': 'Your 30s Prophecy',
-              '10': 'A Final Word for Your Soul'
-            }
+        deepReport: {
+          sectionTitle: 'Your Soul-Depth Report',
+          sectionSubtitle: '10 chapters · a personality guide written only for you',
+          chapterPrefix: 'Chapter',
+          chapterSuffix: '',
+          painLabel: 'Your Darkest Hour',
+          healLabel: 'A Final Word for Your Soul',
+          lockTitleStandard: 'This chapter unlocks with Standard or higher',
+          lockTitlePro: 'This chapter is Pro-only',
+          lockDescStandard: 'Upgrade to Standard (¥4.9) or Pro (¥9.9) to read all 10 chapters.',
+          lockDescPro: 'Upgrade to Pro (¥9.9) to unlock the practice / 30-prophecy / soul-letter trio.',
+          lockCtaStandard: 'Upgrade to Standard',
+          lockCtaPro: 'Upgrade to Pro',
+          unlockedAll: 'All 10 chapters unlocked',
+          scrollHint: '↓ Read slowly — no chapter is filler',
+          translationNote: '※ Full English translation in progress. Quotes and titles are localized; the chapter body remains in Chinese for now — switch to 中文 (top-right) for the best read.',
+          chapterTitles: {
+            '1': 'Your Core Belief',
+            '2': 'Your Childhood Imprint',
+            '3': 'Your Romance Script',
+            '4': 'Your Wealth Destiny',
+            '5': 'Your Career Fate',
+            '6': 'Your Darkest Hour',
+            '7': 'Your Allies & Guardians',
+            '8': 'Your Inner Practice',
+            '9': 'Your 30s Prophecy',
+            '10': 'A Final Word for Your Soul'
           }
         },
 
@@ -3474,13 +3529,34 @@
      * 返回 true/false。tier 已知（来自当前付费墙上下文）
      */
     async function verifyUnlockCode(rawCode, tier) {
-      const code = (rawCode || '').toUpperCase().replace(/\s+/g, '');
-      // 硬编码测试码（REMOVE-BEFORE-PRODUCTION）
+      // 归一化：去空白与横线、转大写；若净长 12 位则按固定位置补横线
+      // → 兼容 "mbti-free-a001" / "MBTIFREEA001" / "MBTI-FREE-A001" 三种写法
+      let code = (rawCode || '').toUpperCase().replace(/[\s-]/g, '');
+      if (/^[A-Z0-9]{12}$/.test(code)) {
+        code = `${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8, 12)}`;
+      }
+
+      /* ---------- 试用版白名单测试码（亲友试玩用 · 上线前必须删除整段） ----------
+       * 与 docs/测试码分配表.md 保持一致。任一码可解锁 standard93 / pro144 / matching
+       * 三档；AI 顾问档（ai）不在白名单内（如需开放再加 'ai'）。
+       * ⚠️ REMOVE-BEFORE-PRODUCTION：上线前删除 TRIAL_WHITELIST 数组与下方 if 块。
+       * ----------------------------------------------------------------------- */
+      const TRIAL_WHITELIST = [
+        'MBTI-FREE-A001', 'MBTI-FREE-A002', 'MBTI-FREE-A003', 'MBTI-FREE-A004',
+        'MBTI-FREE-A005', 'MBTI-FREE-A006', 'MBTI-FREE-A007', 'MBTI-FREE-A008',
+        'MBTI-FREE-A009', 'MBTI-FREE-A010'
+      ];
+      if (TRIAL_WHITELIST.includes(code) && ['standard93', 'pro144', 'matching'].includes(tier)) {
+        return true;
+      }
+
+      // 硬编码单档测试码（REMOVE-BEFORE-PRODUCTION）
       if (code === 'MBTI-TEST-STD0' && tier === 'standard93') return true;
       if (code === 'MBTI-TEST-PRO0' && tier === 'pro144')     return true;
       if (code === 'MBTI-TEST-MTCH' && tier === 'matching')   return true;
       if (code === 'MBTI-TEST-AI00' && tier === 'ai')         return true;
-      // 形式检查
+
+      // 算法校验（admin.html 生成的真实码走这条路径）
       const m = code.match(/^MBTI-([A-Z0-9]{4})-([A-Z0-9]{4})$/);
       if (!m) return false;
       const [, saltSeed, providedChecksum] = m;
@@ -3609,11 +3685,15 @@
         matchingActiveTab: 'A',           // 'A' | 'B'
         matchingPersonA: {
           nickname: '', gender: 'male',
-          year: 1995, month: 1, day: 1, hour: 12, city: '北京', mbti: ''
+          year: 1995, month: 1, day: 1, hour: 12, city: '北京', mbti: '',
+          // 日历类型与农历缓存：calendarType='solar' 时 lunarYear/Month/Day 仅作显示，
+          // 数据真值始终是公历 year/month/day（bazi.js / astro 算法都吃公历）
+          calendarType: 'solar', lunarYear: null, lunarMonth: null, lunarDay: null
         },
         matchingPersonB: {
           nickname: '', gender: 'female',
-          year: 1995, month: 1, day: 1, hour: 12, city: '北京', mbti: ''
+          year: 1995, month: 1, day: 1, hour: 12, city: '北京', mbti: '',
+          calendarType: 'solar', lunarYear: null, lunarMonth: null, lunarDay: null
         },
         matchingRelationType: 'love',     // love/marriage/friend/partner/colleague
         matchingResult: null,
@@ -3636,11 +3716,11 @@
         get _p() {
           return this.matchingActiveTab === 'A' ? this.matchingPersonA : this.matchingPersonB;
         },
-        // 城市列表（从 ASTRO 取，UI 渲染用）
-        get matchingCityList() {
-          return window.ASTRO ? Object.keys(window.ASTRO.CITIES) : ['北京'];
+        // 城市分组（按省→城市嵌套对象，<optgroup> 渲染用）
+        get matchingCityGroups() {
+          return (window.ASTRO && window.ASTRO.CITIES_BY_PROVINCE) || { '直辖市': { '北京': { lat: 39.9, lon: 116.4 } } };
         },
-        // 年/月/日下拉项
+        // 年/月/日下拉项（公历）
         get matchingYearList() {
           const out = []; for (let y = 1930; y <= 2025; y++) out.push(y); return out;
         },
@@ -3649,6 +3729,101 @@
         },
         get matchingDayList() {
           const out = []; for (let d = 1; d <= 31; d++) out.push(d); return out;
+        },
+        // ---------- 农历输入相关 ----------
+        get matchingLunarYearList() {
+          const out = []; for (let y = 1930; y <= 2025; y++) out.push(y); return out;
+        },
+        // 农历月（含闰月）：[{value, label}, ...]，闰月用负数表示（lunar-javascript 约定）
+        get matchingLunarMonthList() {
+          const y = this._p.lunarYear || this._p.year || 1995;
+          const leapPrefix = this.t('matching.calendarLeapPrefix') || '闰';
+          if (!window.LunarYear) {
+            return [1,2,3,4,5,6,7,8,9,10,11,12].map(m => ({ value: m, label: m + this.t('matching.inputMonth') }));
+          }
+          try {
+            const months = window.LunarYear.fromYear(y).getMonths();
+            return months.map(lm => {
+              const mv = lm.getMonth(); // 正数=普通月，负数=闰月
+              const isLeap = mv < 0;
+              const absM = Math.abs(mv);
+              return { value: mv, label: (isLeap ? leapPrefix : '') + absM + this.t('matching.inputMonth') };
+            });
+          } catch (_) {
+            return [1,2,3,4,5,6,7,8,9,10,11,12].map(m => ({ value: m, label: m + this.t('matching.inputMonth') }));
+          }
+        },
+        // 农历日：根据该农历年月的大小决定 29 或 30
+        get matchingLunarDayList() {
+          const y = this._p.lunarYear || 1995;
+          const m = this._p.lunarMonth || 1;
+          let dayCount = 30;
+          if (window.LunarMonth) {
+            try { dayCount = window.LunarMonth.fromYm(y, m).getDayCount(); } catch (_) {}
+          }
+          const out = []; for (let d = 1; d <= dayCount; d++) out.push(d); return out;
+        },
+        // 切换公历/农历输入态
+        setCalendarType(type) {
+          if (type !== 'solar' && type !== 'lunar') return;
+          this._p.calendarType = type;
+          if (type === 'lunar') {
+            // 进入农历态：用当前公历 y/m/d 算出对应农历，填到 lunarYear/Month/Day
+            if (window.Solar) {
+              try {
+                const lunar = window.Solar.fromYmd(this._p.year, this._p.month, this._p.day).getLunar();
+                this._p.lunarYear = lunar.getYear();
+                this._p.lunarMonth = lunar.getMonth();
+                this._p.lunarDay = lunar.getDay();
+              } catch (_) {
+                this._p.lunarYear = this._p.year;
+                this._p.lunarMonth = this._p.month;
+                this._p.lunarDay = this._p.day;
+              }
+            }
+          }
+          // 切回公历不需要动作：公历 y/m/d 一直是真值
+        },
+        // 用户在农历态修改某一部分（year/month/day）→ 同步回公历存储
+        setLunarPart(part, value) {
+          if (!Number.isFinite(value)) return;
+          if (part === 'year')  this._p.lunarYear  = value;
+          if (part === 'month') this._p.lunarMonth = value;
+          if (part === 'day')   this._p.lunarDay   = value;
+          // 修改年/月后日数范围可能变化，把 day clamp 到合法范围
+          if (window.LunarMonth && (part === 'year' || part === 'month')) {
+            try {
+              const dc = window.LunarMonth.fromYm(this._p.lunarYear, this._p.lunarMonth).getDayCount();
+              if (this._p.lunarDay > dc) this._p.lunarDay = dc;
+            } catch (_) {}
+          }
+          // 农历 → 公历 → 写入真值
+          if (window.Lunar) {
+            try {
+              const solar = window.Lunar.fromYmd(this._p.lunarYear, this._p.lunarMonth, this._p.lunarDay).getSolar();
+              this._p.year  = solar.getYear();
+              this._p.month = solar.getMonth();
+              this._p.day   = solar.getDay();
+            } catch (_) {}
+          }
+        },
+        // 转换预览文本：农历态下显示"对应公历 YYYY-MM-DD"；公历态下显示"对应农历 X月X日"
+        lunarPreviewText() {
+          const ct = this._p.calendarType || 'solar';
+          if (ct === 'lunar') {
+            return this.t('matching.calendarConvertedToSolar') + ': ' + this._p.year + '-' +
+                   String(this._p.month).padStart(2,'0') + '-' + String(this._p.day).padStart(2,'0');
+          }
+          if (!window.Solar) return '';
+          try {
+            const lunar = window.Solar.fromYmd(this._p.year, this._p.month, this._p.day).getLunar();
+            const mv = lunar.getMonth();
+            const monthLabel = (mv < 0 ? this.t('matching.calendarLeapPrefix') : '') + Math.abs(mv) + this.t('matching.inputMonth');
+            return this.t('matching.calendarConvertedToLunar') + ': ' + lunar.getYear() + this.t('matching.inputYear') +
+                   monthLabel + lunar.getDay() + this.t('matching.inputDay');
+          } catch (_) {
+            return '';
+          }
         },
 
         /* ===== P3 AI 关系咨询（小满） ===== */
