@@ -122,22 +122,34 @@
       position: relative;
       background: white;
       border-radius: 16px;
-      padding: 1.5rem;
+      padding: 1.5rem 1.5rem 1.5rem 1.75rem;
       margin-bottom: 1rem;
-      border: 1px solid rgba(0,0,0,.06);
+      border: 1px solid #E5E7EB;
+      border-left: 4px solid #6366F1;
       transition: transform .2s, box-shadow .2s;
       overflow: hidden;
     }
-    .dark .deep-chapter-card { background: rgb(30 41 59); border-color: rgba(255,255,255,.06); }
+    .dark .deep-chapter-card { background: rgb(30 41 59); border-color: rgba(255,255,255,.08); border-left-color: #818CF8; }
     .deep-chapter-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.06); }
     .deep-chapter-num {
       display: inline-flex; align-items: center; justify-content: center;
       width: 36px; height: 36px; border-radius: 50%;
+      background: #6366F1;
       color: white; font-weight: 700; font-size: 0.95rem;
       flex-shrink: 0;
     }
+    .dark .deep-chapter-num { background: #818CF8; }
     .deep-chapter-title {
       font-size: 1.25rem; font-weight: 700; line-height: 1.3;
+      color: #18181B;
+    }
+    .dark .deep-chapter-title { color: #F1F5F9; }
+    .deep-chapter-label {
+      font-size: 0.6875rem;
+      color: #9CA3AF;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      font-weight: 500;
     }
     @media (min-width: 640px) { .deep-chapter-title { font-size: 1.5rem; } }
     .deep-chapter-content {
@@ -814,19 +826,19 @@
         <section class="max-w-3xl mx-auto px-4 mt-10">
           <!-- 章节区标题 -->
           <div class="mb-6 text-center">
-            <h2 class="text-xl sm:text-2xl font-bold mb-1" :style="`color: ${typeData(result.code).themeColor}`" x-text="t('result.deepReport.sectionTitle')"></h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400" x-text="t('result.deepReport.sectionSubtitle')"></p>
-            <p x-show="lang==='en'" class="text-xs text-amber-600 dark:text-amber-400 mt-2" x-text="t('result.deepReport.translationNote')"></p>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-3" x-text="t('result.deepReport.scrollHint')"></p>
+            <h2 class="text-xl sm:text-2xl font-bold mb-1" :style="`color: ${typeData(result.code).themeColor}`" x-text="t('deepReport.sectionTitle')"></h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400" x-text="t('deepReport.sectionSubtitle')"></p>
+            <p x-show="lang==='en'" class="text-xs text-amber-600 dark:text-amber-400 mt-2" x-text="t('deepReport.translationNote')"></p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-3" x-text="t('deepReport.scrollHint')"></p>
           </div>
 
           <!-- 10 章节卡片 -->
           <template x-for="n in 10" :key="n">
-            <article class="deep-chapter-card" :style="`border-top: 4px solid ${typeData(result.code).themeColor}`">
+            <article class="deep-chapter-card">
               <div class="flex items-center gap-3 mb-3">
-                <div class="deep-chapter-num" :style="`background: ${typeData(result.code).themeColor}`" x-text="String(n).padStart(2, '0')"></div>
+                <div class="deep-chapter-num" x-text="String(n).padStart(2, '0')"></div>
                 <div class="flex-1 min-w-0">
-                  <div class="text-xs text-gray-400 uppercase tracking-wider" x-text="t('result.deepReport.chapterPrefix') + ' ' + n + ' ' + t('result.deepReport.chapterSuffix')"></div>
+                  <div class="deep-chapter-label" x-text="t('deepReport.chapterPrefix') + ' ' + n + ' ' + t('deepReport.chapterSuffix')"></div>
                   <h3 class="deep-chapter-title" x-text="chapterTitle(n)"></h3>
                 </div>
               </div>
@@ -843,10 +855,10 @@
                   <div class="deep-chapter-locked-overlay">
                     <svg class="w-10 h-10" :style="`color: ${typeData(result.code).themeColor}`" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                     <div>
-                      <div class="font-bold text-base mb-1" x-text="chapterTier(n) === 'pro144' ? t('result.deepReport.lockTitlePro') : t('result.deepReport.lockTitleStandard')"></div>
-                      <p class="text-sm text-gray-600 dark:text-gray-300 max-w-xs mx-auto" x-text="chapterTier(n) === 'pro144' ? t('result.deepReport.lockDescPro') : t('result.deepReport.lockDescStandard')"></p>
+                      <div class="font-bold text-base mb-1" x-text="chapterTier(n) === 'pro144' ? t('deepReport.lockTitlePro') : t('deepReport.lockTitleStandard')"></div>
+                      <p class="text-sm text-gray-600 dark:text-gray-300 max-w-xs mx-auto" x-text="chapterTier(n) === 'pro144' ? t('deepReport.lockDescPro') : t('deepReport.lockDescStandard')"></p>
                     </div>
-                    <button @click="go('paywall', { tier: chapterTier(n) })" class="px-5 py-2 rounded-btn text-white font-semibold text-sm shadow-md" :style="`background: ${typeData(result.code).themeColor}`" x-text="chapterTier(n) === 'pro144' ? t('result.deepReport.lockCtaPro') : t('result.deepReport.lockCtaStandard')"></button>
+                    <button @click="go('paywall', { tier: chapterTier(n) })" class="px-5 py-2 rounded-btn text-white font-semibold text-sm shadow-md" :style="`background: ${typeData(result.code).themeColor}`" x-text="chapterTier(n) === 'pro144' ? t('deepReport.lockCtaPro') : t('deepReport.lockCtaStandard')"></button>
                   </div>
                 </div>
               </template>
@@ -856,11 +868,11 @@
           <!-- 底部金句 bookend：扎心金句（黑底白字） + 疗愈金句（金底深色） -->
           <div class="mt-8 space-y-5">
             <div class="pain-quote-card" x-show="getQuote('painQuote')">
-              <div class="pain-quote-label" x-text="t('result.deepReport.painLabel')"></div>
+              <div class="pain-quote-label" x-text="t('deepReport.painLabel')"></div>
               <div class="pain-quote-text" x-text="'「 ' + getQuote('painQuote') + ' 」'"></div>
             </div>
             <div class="heal-quote-card" x-show="getQuote('healQuote')">
-              <div class="heal-quote-label" x-text="t('result.deepReport.healLabel')"></div>
+              <div class="heal-quote-label" x-text="t('deepReport.healLabel')"></div>
               <div class="heal-quote-text" x-text="'「 ' + getQuote('healQuote') + ' 」'"></div>
             </div>
           </div>
@@ -4125,7 +4137,9 @@
 
         /* ---------- 灵魂版深度报告（10 章节） ---------- */
         deepReport(code) {
-          return (window.DEEP_REPORTS || {})[code] || null;
+          // 兼容 INFJ-A → INFJ：standard93 / pro144 的 result.code 带 AT 后缀
+          const base = String(code || '').split('-')[0];
+          return (window.DEEP_REPORTS || {})[base] || null;
         },
         /**
          * 取深度报告字段的本地化版本。
@@ -4143,7 +4157,7 @@
          */
         chapterTitle(n) {
           if (this.lang === 'en') {
-            return this.t('result.deepReport.chapterTitles.' + n);
+            return this.t('deepReport.chapterTitles.' + n);
           }
           const dr = this.deepReport(this.result && this.result.code);
           if (!dr) return '';
