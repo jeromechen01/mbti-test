@@ -3666,6 +3666,7 @@
               // 更新档案的测试相关字段（upsert：行不存在则建；只写测试字段，不动昵称/省市，避免覆盖）
               const { error: pErr } = await window.sb.from('profiles').upsert({
                 id: this.user.id,
+                phone: this.user.phone,   // profiles.phone NOT NULL，行不存在时插入需带上
                 mbti_code: result.code, base_code: result.baseCode,
                 buddy_tag: buddyTag, scene_tags: sceneKeys,
                 updated_at: new Date().toISOString()
@@ -3759,6 +3760,7 @@
           try {
             const { error } = await window.sb.from('profiles').upsert({
               id: this.user.id,
+              phone: this.user.phone,   // profiles.phone NOT NULL，行不存在时插入需带上
               nickname: nick,
               city: (this.profile.city || '').trim() || null,
               updated_at: new Date().toISOString()
@@ -4265,6 +4267,7 @@
           // upsert：行不存在则插入、存在则更新（不依赖建档触发器）。RLS：本人 insert/update 均允许。
           const { error } = await window.sb.from('profiles').upsert({
             id: this.user.id,
+            phone: this.user.phone,   // profiles.phone 为 NOT NULL，insert 必须带真实手机号
             name: name || null,
             nickname: name || null,   // 默认昵称=姓名（排行榜显示用，用户可在「我的」修改）
             birth_date: birth,
