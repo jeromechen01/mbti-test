@@ -4169,9 +4169,17 @@
          * ======================================================= */
         validPhone(p) { return /^1\d{10}$/.test((p || '').trim()); },
         phoneToEmail(p) { return (p || '').trim() + '@meal-buddy.local'; },   // 伪邮箱技巧
-        get regYearList() { const a = []; for (let y = 2012; y >= 1990; y--) a.push(y); return a; },
+        get regYearList() { const a = []; for (let y = 2026; y >= 1930; y--) a.push(y); return a; },
         get regMonthList() { return [1,2,3,4,5,6,7,8,9,10,11,12]; },
-        get regDayList() { const a = []; for (let d = 1; d <= 31; d++) a.push(d); return a; },
+        get regDayList() {
+          const y = parseInt(this.regBirthYear, 10);
+          const m = parseInt(this.regBirthMonth, 10);
+          let max = 31;
+          if (m >= 1 && m <= 12) {
+            max = y ? new Date(y, m, 0).getDate() : (m === 2 ? 29 : ([4,6,9,11].includes(m) ? 30 : 31));
+          }
+          const a = []; for (let d = 1; d <= max; d++) a.push(d); return a;
+        },
         maskedPhone() {
           const p = (this.user && this.user.phone) || '';
           return /^\d{11}$/.test(p) ? p.slice(0, 3) + '****' + p.slice(-4) : p;
