@@ -649,6 +649,51 @@
         </section>
       </template>
 
+      <!-- ============== 人格详细解读（快测/完整都显示；核心展开，其余折叠） ============== -->
+      <template x-if="result && typeData(result.code)">
+        <section class="max-w-3xl mx-auto px-4 mt-8">
+          <h3 class="text-base font-semibold mb-4" x-text="t('result.detailTitle')"></h3>
+          <div class="space-y-4">
+            <!-- 核心特质（默认展开） -->
+            <div class="bg-white dark:bg-slate-800 rounded-card p-5 border border-gray-100 dark:border-slate-700">
+              <div class="text-sm font-semibold mb-2" :style="`color: ${typeData(result.code).themeColor}`" x-text="t('result.tabs.profile')"></div>
+              <p class="text-sm leading-relaxed text-gray-700 dark:text-gray-200" x-text="typeData(result.code)[lang].profile"></p>
+            </div>
+            <!-- 优势 / 盲点 -->
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="bg-white dark:bg-slate-800 rounded-card p-5 border border-gray-100 dark:border-slate-700">
+                <div class="text-sm font-semibold mb-3 flex items-center gap-1.5"><span class="text-emerald-500">✦</span><span x-text="t('result.tabs.strengths')"></span></div>
+                <ul class="space-y-1.5">
+                  <template x-for="(s, i) in splitList(typeData(result.code)[lang].strengths)" :key="i">
+                    <li class="text-sm text-gray-700 dark:text-gray-200 flex gap-2"><span class="text-emerald-500 mt-0.5">·</span><span x-text="s"></span></li>
+                  </template>
+                </ul>
+              </div>
+              <div class="bg-white dark:bg-slate-800 rounded-card p-5 border border-gray-100 dark:border-slate-700">
+                <div class="text-sm font-semibold mb-3 flex items-center gap-1.5"><span class="text-amber-500">◆</span><span x-text="t('result.tabs.challenges')"></span></div>
+                <ul class="space-y-1.5">
+                  <template x-for="(s, i) in splitList(typeData(result.code)[lang].challenges)" :key="i">
+                    <li class="text-sm text-gray-700 dark:text-gray-200 flex gap-2"><span class="text-amber-500 mt-0.5">·</span><span x-text="s"></span></li>
+                  </template>
+                </ul>
+              </div>
+            </div>
+            <!-- 更多解读（默认折叠：亲密关系/友情/职业/工作/沟通） -->
+            <template x-if="detailExpanded">
+              <div class="space-y-4">
+                <template x-for="f in [{k:'loveLanguage',l:'result.tabs.love'},{k:'friendship',l:'result.friendship'},{k:'career',l:'result.tabs.career'},{k:'workStyle',l:'result.tabs.work'},{k:'communication',l:'result.tabs.communication'}]" :key="f.k">
+                  <div class="bg-white dark:bg-slate-800 rounded-card p-5 border border-gray-100 dark:border-slate-700">
+                    <div class="text-sm font-semibold mb-2" :style="`color: ${typeData(result.code).themeColor}`" x-text="t(f.l)"></div>
+                    <p class="text-sm leading-relaxed text-gray-700 dark:text-gray-200" x-text="typeData(result.code)[lang][f.k]"></p>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <button @click="detailExpanded = !detailExpanded" class="w-full py-2.5 rounded-btn border border-gray-200 dark:border-slate-700 text-sm text-gray-600 dark:text-gray-300 hover:border-primary transition" x-text="detailExpanded ? t('result.detailLess') : t('result.detailMore')"></button>
+          </div>
+        </section>
+      </template>
+
       <!-- ============== 灵魂版深度报告：10 章卡片堆叠 + 金句 bookend（仅深测档） ============== -->
       <template x-if="result && isDeepTier() && deepReport(result.code)">
         <section class="max-w-3xl mx-auto px-4 mt-10">
@@ -1623,6 +1668,9 @@
             communication: '人际沟通', growth: '成长建议'
           },
           friendship: '友情',
+          detailTitle: '人格详细解读',
+          detailMore: '展开更多解读（亲密关系 / 友情 / 职业 / 工作 / 沟通）',
+          detailLess: '收起',
           compatibleTitle: '最契合的类型',
           challengingTitle: '需要磨合的类型',
           famousTitle: '同类型名人',
@@ -1734,6 +1782,7 @@
           registerSuccess: '注册成功',
           registerNeedConfirm: '注册成功，请用手机号和密码登录',
           registerFail: '注册失败，请稍后重试',
+          profileSaveFail: '账号已创建，但资料保存失败',
           loginWrong: '手机号或密码错误',
           loginUnavailable: '登录服务暂未配置，请稍后再试'
         },
@@ -1938,6 +1987,9 @@
             communication: 'Communication', growth: 'Growth'
           },
           friendship: 'Friendship',
+          detailTitle: 'Your personality, in depth',
+          detailMore: 'More (Relationships / Friendship / Career / Work / Communication)',
+          detailLess: 'Show less',
           compatibleTitle: 'Most compatible',
           challengingTitle: 'Needs work',
           famousTitle: 'Same-type figures',
@@ -2045,6 +2097,7 @@
           registerSuccess: 'Registered',
           registerNeedConfirm: 'Registered — please log in with your phone and password',
           registerFail: 'Registration failed, please try again',
+          profileSaveFail: 'Account created, but saving your profile failed',
           loginWrong: 'Wrong phone number or password',
           loginUnavailable: 'Login is not configured yet, please try later'
         },
@@ -3198,6 +3251,7 @@
         /* ===== 结果页 ===== */
         result: null,
         activeTab: 'profile',
+        detailExpanded: false,   // 结果页「人格详细解读」更多段落折叠
         sharing: false,
 
         /* ===== 解锁状态（仅 AI 顾问） ===== */
@@ -3519,7 +3573,7 @@
           if (this.history.length > 50) this.history.length = 50;
           saveState({ history: this.history });
           this.clearProgress();
-          this.activeTab = 'profile';
+          this.activeTab = 'profile'; this.detailExpanded = false;
           this.go('result', { type: result.code });
           // 登录用户：异步存云端并生成分享码
           this.saveReportToCloud(result, item);
@@ -3532,6 +3586,10 @@
           // 兼容 INFJ-A → INFJ
           const base = String(code || '').split('-')[0];
           return window.PERSONALITY_TYPES[base];
+        },
+        // 把"优势/盲点"单字符串按 ；/; 拆成条目（用于结果页列表展示）
+        splitList(str) {
+          return (str || '').split(/[；;]/).map(s => s.trim()).filter(Boolean);
         },
 
         /* ---------- 搭子标签 & 匹配 ---------- */
@@ -3605,15 +3663,14 @@
               if (item) { item.cloudId = data.id; item.shareCode = data.share_code; }
               if (this.result) this.result.shareCode = data.share_code;
               saveState({ history: this.history });
-              // 顺带更新档案：最新型 + 搭子标签 + 场景标签 + 昵称/城市（供匹配排行榜用）
-              window.sb.from('profiles').update({
+              // 更新档案的测试相关字段（upsert：行不存在则建；只写测试字段，不动昵称/省市，避免覆盖）
+              const { error: pErr } = await window.sb.from('profiles').upsert({
+                id: this.user.id,
                 mbti_code: result.code, base_code: result.baseCode,
                 buddy_tag: buddyTag, scene_tags: sceneKeys,
-                nickname: this.profile.nickname || null,
-                city: (this.profile.city || '').trim() || null,
-                province: this.profile.province || null,
                 updated_at: new Date().toISOString()
-              }).eq('id', this.user.id).then(() => {}, () => {});
+              }, { onConflict: 'id' });
+              if (pErr) console.warn('[profile] upsert on report:', pErr);
               // 同步本地 profile，排行榜可即时用
               this.profile.base_code = result.baseCode;
               this.profile.mbti_code = result.code;
@@ -3651,7 +3708,7 @@
               dimensions: dims, balanced, setCode: row.set_code,
               shareCode: row.share_code, isShared: true
             };
-            this.activeTab = 'profile';
+            this.activeTab = 'profile'; this.detailExpanded = false;
           } catch (e) { console.warn('[shared] load failed', e); this.sharedNotFound = true; }
           finally { this.sharedLoading = false; }
         },
@@ -3700,11 +3757,12 @@
           if (!nick) { this.showToast(this.t('ranking.needNickname')); return; }
           this.profileSaving = true;
           try {
-            const { error } = await window.sb.from('profiles').update({
+            const { error } = await window.sb.from('profiles').upsert({
+              id: this.user.id,
               nickname: nick,
               city: (this.profile.city || '').trim() || null,
               updated_at: new Date().toISOString()
-            }).eq('id', this.user.id);
+            }, { onConflict: 'id' });
             if (error) { console.warn('[profile] save', error); this.showToast(this.t('common.retry')); return; }
             this.profile.nickname = nick;
             this.showToast(this.t('ranking.profileSaved'));
@@ -4059,7 +4117,7 @@
          * ======================================================= */
         viewHistoryReport(record) {
           this.result = record;
-          this.activeTab = 'profile';
+          this.activeTab = 'profile'; this.detailExpanded = false;
           this.go('result', { type: record.code });
         },
         deleteHistoryRecord(id) {
@@ -4162,31 +4220,39 @@
           if (!window.sb) { this.showToast(this.t('auth.loginUnavailable')); return; }
           this.authLoading = true;
           try {
-            const { data, error } = await window.sb.auth.signUp({
-              email: this.phoneToEmail(this.regPhone), password: pw
-            });
-            if (error) {
-              console.warn('[auth] signUp:', error);
-              const taken = /registered|already|exists/i.test(error.message || '');
-              this.showToast(taken ? this.t('auth.phoneExists') : this.t('auth.registerFail'));
+            const fakeEmail = this.phoneToEmail(this.regPhone);
+            // 1. 注册
+            const { error: suErr } = await window.sb.auth.signUp({ email: fakeEmail, password: pw });
+            if (suErr) {
+              console.warn('[auth] signUp:', suErr);
+              const taken = /registered|already|exists/i.test(suErr.message || '');
+              this.showToast(taken ? this.t('auth.phoneExists') : (this.t('auth.registerFail') + '：' + suErr.message), 5000);
               return;
             }
+            // 2. 主动登录拿到确定的 session —— 关键：保证写 profiles 时 auth.uid() 已就绪，绕开 RLS 时序问题
+            const { data: siData, error: siErr } = await window.sb.auth.signInWithPassword({ email: fakeEmail, password: pw });
+            if (siErr || !siData || !siData.session) {
+              // 拿不到 session（绝大多数是后台 "Confirm email" 没关）→ 引导去登录
+              console.warn('[auth] post-signup signIn:', siErr);
+              this.showToast(this.t('auth.registerNeedConfirm'), 5000);
+              this.authMode = 'login';
+              this.authPhone = this.regPhone;
+              return;
+            }
+            this._setUserFromSession(siData.session);
+            // 3. 写档案（此刻 session 已确立，RLS with check (auth.uid()=id) 通过）
             const birth = (this.regBirthYear && this.regBirthMonth && this.regBirthDay)
               ? this.regBirthYear + '-' + String(this.regBirthMonth).padStart(2, '0') + '-' + String(this.regBirthDay).padStart(2, '0')
               : null;
-            if (data && data.session) {
-              // Confirm email 已关 → 注册即登录
-              this._setUserFromSession(data.session);
-              await this._saveRegProfile(name, birth);
-              this.showToast(this.t('auth.registerSuccess'));
-              this._clearAuthForms();
-              this.go('me');
+            const pErr = await this._saveRegProfile(name, birth);
+            if (pErr) {
+              // 账号已建、已登录，但资料写入失败 → 明确告知（含原因），绝不静默
+              this.showToast(this.t('auth.profileSaveFail') + (pErr.message ? '：' + pErr.message : ''), 5000);
             } else {
-              // 未自动登录（Supabase 后台 Confirm email 仍开着）→ 引导去登录
-              this.showToast(this.t('auth.registerNeedConfirm'));
-              this.authMode = 'login';
-              this.authPhone = this.regPhone;
+              this.showToast(this.t('auth.registerSuccess'));
             }
+            this._clearAuthForms();
+            this.go('me');
           } catch (e) {
             console.warn('[auth] register threw:', e);
             this.showToast(this.t('auth.registerFail'));
@@ -4195,20 +4261,22 @@
           }
         },
         async _saveRegProfile(name, birth) {
-          if (!window.sb || !this.user) return;
-          try {
-            await window.sb.from('profiles').update({
-              name: name || null,
-              nickname: name || null,   // 默认昵称=姓名（排行榜显示用，用户可在「我的」修改）
-              birth_date: birth,
-              province: (this.regProvince || '').trim() || null,
-              city: (this.regCity || '').trim() || null,
-              updated_at: new Date().toISOString()
-            }).eq('id', this.user.id);
-            this.profile.nickname = name;
-            this.profile.province = (this.regProvince || '').trim();
-            this.profile.city = (this.regCity || '').trim();
-          } catch (e) { /* 档案写入失败不阻断注册 */ }
+          if (!window.sb || !this.user) return null;
+          // upsert：行不存在则插入、存在则更新（不依赖建档触发器）。RLS：本人 insert/update 均允许。
+          const { error } = await window.sb.from('profiles').upsert({
+            id: this.user.id,
+            name: name || null,
+            nickname: name || null,   // 默认昵称=姓名（排行榜显示用，用户可在「我的」修改）
+            birth_date: birth,
+            province: (this.regProvince || '').trim() || null,
+            city: (this.regCity || '').trim() || null,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+          if (error) { console.warn('[profile] upsert failed:', error); return error; }
+          this.profile.nickname = name;
+          this.profile.province = (this.regProvince || '').trim();
+          this.profile.city = (this.regCity || '').trim();
+          return null;
         },
         /* ---- 登录（手机号 + 密码） ---- */
         async login() {
